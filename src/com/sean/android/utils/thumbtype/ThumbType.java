@@ -16,6 +16,9 @@
 
 package com.sean.android.utils.thumbtype;
 
+import java.util.ArrayList;
+import java.util.List;
+
 import android.inputmethodservice.InputMethodService;
 import android.inputmethodservice.Keyboard;
 import android.inputmethodservice.KeyboardView;
@@ -27,20 +30,7 @@ import android.view.View;
 import android.view.inputmethod.CompletionInfo;
 import android.view.inputmethod.EditorInfo;
 import android.view.inputmethod.InputConnection;
-import android.view.inputmethod.InputMethodManager;
-import android.view.inputmethod.InputMethodSubtype;
-import com.sean.android.utils.thumbtype.R;
 
-import java.util.ArrayList;
-import java.util.List;
-
-/**
- * Example of writing an input method for a soft keyboard.  This code is
- * focused on simplicity over completeness, so it should in no way be considered
- * to be a complete soft keyboard implementation.  Its purpose is to provide
- * a basic example for how you would get started writing an input method, to
- * be fleshed out as appropriate.
- */
 public class ThumbType extends InputMethodService 
         implements KeyboardView.OnKeyboardActionListener {
     static final boolean DEBUG = false;
@@ -54,8 +44,6 @@ public class ThumbType extends InputMethodService
      * that are primarily intended to be used for on-screen text entry.
      */
     static final boolean PROCESS_HARD_KEYS = true;
-
-    private InputMethodManager mInputMethodManager;
 
     private LatinKeyboardView mInputView;
     private CandidateView mCandidateView;
@@ -83,7 +71,6 @@ public class ThumbType extends InputMethodService
      */
     @Override public void onCreate() {
         super.onCreate();
-        mInputMethodManager = (InputMethodManager)getSystemService(INPUT_METHOD_SERVICE);
         mWordSeparators = getResources().getString(R.string.word_separators);
     }
     
@@ -250,13 +237,6 @@ public class ThumbType extends InputMethodService
         // Apply the selected keyboard to the input view.
         mInputView.setKeyboard(mCurKeyboard);
         mInputView.closing();
-        final InputMethodSubtype subtype = mInputMethodManager.getCurrentInputMethodSubtype();
-        mInputView.setSubtypeOnSpaceKey(subtype);
-    }
-
-    @Override
-    public void onCurrentInputMethodSubtypeChanged(InputMethodSubtype subtype) {
-        mInputView.setSubtypeOnSpaceKey(subtype);
     }
 
     /**

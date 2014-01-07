@@ -37,7 +37,7 @@ public final class R {
         public static final int input=0x7f030000;
     }
     public static final class string {
-        public static final int general_category=0x7f07000a;
+        public static final int general_category=0x7f070006;
         /**  Title for Latin keyboard  
          */
         public static final int ime_name=0x7f070000;
@@ -46,15 +46,9 @@ public final class R {
         public static final int label_go_key=0x7f070002;
         public static final int label_next_key=0x7f070003;
         public static final int label_send_key=0x7f070004;
-        public static final int label_subtype_en_GB=0x7f070006;
-        /**  Labels for subtype 
-         */
-        public static final int label_subtype_generic=0x7f070005;
-        public static final int language_selection_title=0x7f070008;
-        public static final int select_language=0x7f070009;
         /**  Titles for ImePreference 
          */
-        public static final int settings_name=0x7f070007;
+        public static final int settings_name=0x7f070005;
         /**  Symbols that are commonly considered word separators in this language 
          */
         public static final int word_separators=0x7f070001;
