@@ -1,1 +1,6 @@
 Test project for alternate android keyboard.
+
+The goal is to have a soft keyboard for development on mobile devices that:
+    - does not use up half your screen
+    - allows easy typing even while on the go
+
