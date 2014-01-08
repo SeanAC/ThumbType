@@ -46,6 +46,7 @@ public class ThumbType extends InputMethodService
     static final boolean PROCESS_HARD_KEYS = true;
 
     private LatinKeyboardView mInputView;
+	private View mTransparentView;
     private CandidateView mCandidateView;
     private CompletionInfo[] mCompletions;
     
@@ -101,9 +102,10 @@ public class ThumbType extends InputMethodService
     @Override public View onCreateInputView() {
         mInputView = (LatinKeyboardView) getLayoutInflater().inflate(
                 R.layout.input, null);
+		mTransparentView = getLayoutInflater().inflate(R.layout.transparent_view, null);
         mInputView.setOnKeyboardActionListener(this);
         mInputView.setKeyboard(mQwertyKeyboard);
-        return mInputView;
+        return mTransparentView;
     }
 
     /**

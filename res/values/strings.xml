@@ -32,4 +32,7 @@
     <!-- Titles for ImePreference -->
     <string name="settings_name">ThumbType Settings</string>
     <string name="general_category">General</string>
+	
+	<string name="message_text">ThumbType</string>
+	
 </resources>
