@@ -20,11 +20,9 @@ import java.util.ArrayList;
 import java.util.List;
 
 import android.inputmethodservice.InputMethodService;
-import android.inputmethodservice.Keyboard;
 import android.inputmethodservice.KeyboardView;
 import android.text.InputType;
 import android.text.method.MetaKeyKeyListener;
-import android.view.KeyCharacterMap;
 import android.view.KeyEvent;
 import android.view.View;
 import android.view.inputmethod.CompletionInfo;
@@ -45,8 +43,7 @@ public class ThumbType extends InputMethodService
      */
     static final boolean PROCESS_HARD_KEYS = true;
 
-    private LatinKeyboardView mInputView;
-	private View mTransparentView;
+    private ThumbTypeView mInputView;
     private CandidateView mCandidateView;
     private CompletionInfo[] mCompletions;
     
@@ -54,12 +51,9 @@ public class ThumbType extends InputMethodService
     private boolean mPredictionOn;
     private boolean mCompletionOn;
     private int mLastDisplayWidth;
-    private boolean mCapsLock;
-    private long mLastShiftTime;
     private long mMetaState;
     
     private LatinKeyboard mSymbolsKeyboard;
-    private LatinKeyboard mSymbolsShiftedKeyboard;
     private LatinKeyboard mQwertyKeyboard;
     
     private LatinKeyboard mCurKeyboard;
@@ -90,7 +84,6 @@ public class ThumbType extends InputMethodService
         }
         mQwertyKeyboard = new LatinKeyboard(this, R.xml.qwerty);
         mSymbolsKeyboard = new LatinKeyboard(this, R.xml.symbols);
-        mSymbolsShiftedKeyboard = new LatinKeyboard(this, R.xml.symbols_shift);
     }
     
     /**
@@ -100,22 +93,12 @@ public class ThumbType extends InputMethodService
      * a configuration change.
      */
     @Override public View onCreateInputView() {
-        mInputView = (LatinKeyboardView) getLayoutInflater().inflate(
-                R.layout.input, null);
-		mTransparentView = getLayoutInflater().inflate(R.layout.transparent_view, null);
-        mInputView.setOnKeyboardActionListener(this);
-        mInputView.setKeyboard(mQwertyKeyboard);
-        return mTransparentView;
+        mInputView = (ThumbTypeView) getLayoutInflater().inflate(R.layout.thumb_type_view, null);
+        return mInputView;
     }
 
-    /**
-     * Called by the framework when your view for showing candidates needs to
-     * be generated, like {@link #onCreateInputView}.
-     */
-    @Override public View onCreateCandidatesView() {
-        mCandidateView = new CandidateView(this);
-        mCandidateView.setService(this);
-        return mCandidateView;
+    @Override public boolean onEvaluateFullscreenMode() {
+    	return true;
     }
 
     /**
@@ -227,18 +210,11 @@ public class ThumbType extends InputMethodService
         // up and down if the user is entering text into the bottom of
         // its window.
         setCandidatesViewShown(false);
-        
         mCurKeyboard = mQwertyKeyboard;
-        if (mInputView != null) {
-            mInputView.closing();
-        }
     }
-    
+
     @Override public void onStartInputView(EditorInfo attribute, boolean restarting) {
         super.onStartInputView(attribute, restarting);
-        // Apply the selected keyboard to the input view.
-        mInputView.setKeyboard(mCurKeyboard);
-        mInputView.closing();
     }
 
     /**
@@ -285,105 +261,13 @@ public class ThumbType extends InputMethodService
             setSuggestions(stringList, true, true);
         }
     }
-    
-    /**
-     * This translates incoming hard key events in to edit operations on an
-     * InputConnection.  It is only needed when using the
-     * PROCESS_HARD_KEYS option.
-     */
-    private boolean translateKeyDown(int keyCode, KeyEvent event) {
-        mMetaState = MetaKeyKeyListener.handleKeyDown(mMetaState,
-                keyCode, event);
-        int c = event.getUnicodeChar(MetaKeyKeyListener.getMetaState(mMetaState));
-        mMetaState = MetaKeyKeyListener.adjustMetaAfterKeypress(mMetaState);
-        InputConnection ic = getCurrentInputConnection();
-        if (c == 0 || ic == null) {
-            return false;
-        }
-        
-        if ((c & KeyCharacterMap.COMBINING_ACCENT) != 0) {
-            c = c & KeyCharacterMap.COMBINING_ACCENT_MASK;
-        }
-        
-        if (mComposing.length() > 0) {
-            char accent = mComposing.charAt(mComposing.length() -1 );
-            int composed = KeyEvent.getDeadChar(accent, c);
-
-            if (composed != 0) {
-                c = composed;
-                mComposing.setLength(mComposing.length()-1);
-            }
-        }
-        
-        onKey(c, null);
-        
-        return true;
-    }
-    
+      
     /**
      * Use this to monitor key events being delivered to the application.
      * We get first crack at them, and can either resume them or let them
      * continue to the app.
      */
     @Override public boolean onKeyDown(int keyCode, KeyEvent event) {
-        switch (keyCode) {
-            case KeyEvent.KEYCODE_BACK:
-                // The InputMethodService already takes care of the back
-                // key for us, to dismiss the input method if it is shown.
-                // However, our keyboard could be showing a pop-up window
-                // that back should dismiss, so we first allow it to do that.
-                if (event.getRepeatCount() == 0 && mInputView != null) {
-                    if (mInputView.handleBack()) {
-                        return true;
-                    }
-                }
-                break;
-                
-            case KeyEvent.KEYCODE_DEL:
-                // Special handling of the delete key: if we currently are
-                // composing text for the user, we want to modify that instead
-                // of let the application to the delete itself.
-                if (mComposing.length() > 0) {
-                    onKey(Keyboard.KEYCODE_DELETE, null);
-                    return true;
-                }
-                break;
-                
-            case KeyEvent.KEYCODE_ENTER:
-                // Let the underlying text editor always handle these.
-                return false;
-                
-            default:
-                // For all other keys, if we want to do transformations on
-                // text being entered with a hard keyboard, we need to process
-                // it and do the appropriate action.
-                if (PROCESS_HARD_KEYS) {
-                    if (keyCode == KeyEvent.KEYCODE_SPACE
-                            && (event.getMetaState()&KeyEvent.META_ALT_ON) != 0) {
-                        // A silly example: in our input method, Alt+Space
-                        // is a shortcut for 'android' in lower case.
-                        InputConnection ic = getCurrentInputConnection();
-                        if (ic != null) {
-                            // First, tell the editor that it is no longer in the
-                            // shift state, since we are consuming this.
-                            ic.clearMetaKeyStates(KeyEvent.META_ALT_ON);
-                            keyDownUp(KeyEvent.KEYCODE_A);
-                            keyDownUp(KeyEvent.KEYCODE_N);
-                            keyDownUp(KeyEvent.KEYCODE_D);
-                            keyDownUp(KeyEvent.KEYCODE_R);
-                            keyDownUp(KeyEvent.KEYCODE_O);
-                            keyDownUp(KeyEvent.KEYCODE_I);
-                            keyDownUp(KeyEvent.KEYCODE_D);
-                            // And we consume this event.
-                            return true;
-                        }
-                    }
-                    if (mPredictionOn && translateKeyDown(keyCode, event)) {
-                        return true;
-                    }
-                }
-        }
-        
         return super.onKeyDown(keyCode, event);
     }
 
@@ -422,26 +306,6 @@ public class ThumbType extends InputMethodService
      * editor state.
      */
     private void updateShiftKeyState(EditorInfo attr) {
-        if (attr != null 
-                && mInputView != null && mQwertyKeyboard == mInputView.getKeyboard()) {
-            int caps = 0;
-            EditorInfo ei = getCurrentInputEditorInfo();
-            if (ei != null && ei.inputType != InputType.TYPE_NULL) {
-                caps = getCurrentInputConnection().getCursorCapsMode(attr.inputType);
-            }
-            mInputView.setShifted(mCapsLock || caps != 0);
-        }
-    }
-    
-    /**
-     * Helper to determine if a given character code is alphabetic.
-     */
-    private boolean isAlphabet(int code) {
-        if (Character.isLetter(code)) {
-            return true;
-        } else {
-            return false;
-        }
     }
     
     /**
@@ -454,58 +318,7 @@ public class ThumbType extends InputMethodService
                 new KeyEvent(KeyEvent.ACTION_UP, keyEventCode));
     }
     
-    /**
-     * Helper to send a character to the editor as raw key events.
-     */
-    private void sendKey(int keyCode) {
-        switch (keyCode) {
-            case '\n':
-                keyDownUp(KeyEvent.KEYCODE_ENTER);
-                break;
-            default:
-                if (keyCode >= '0' && keyCode <= '9') {
-                    keyDownUp(keyCode - '0' + KeyEvent.KEYCODE_0);
-                } else {
-                    getCurrentInputConnection().commitText(String.valueOf((char) keyCode), 1);
-                }
-                break;
-        }
-    }
-
-    // Implementation of KeyboardViewListener
-
     public void onKey(int primaryCode, int[] keyCodes) {
-        if (isWordSeparator(primaryCode)) {
-            // Handle separator
-            if (mComposing.length() > 0) {
-                commitTyped(getCurrentInputConnection());
-            }
-            sendKey(primaryCode);
-            updateShiftKeyState(getCurrentInputEditorInfo());
-        } else if (primaryCode == Keyboard.KEYCODE_DELETE) {
-            handleBackspace();
-        } else if (primaryCode == Keyboard.KEYCODE_SHIFT) {
-            handleShift();
-        } else if (primaryCode == Keyboard.KEYCODE_CANCEL) {
-            handleClose();
-            return;
-        } else if (primaryCode == LatinKeyboardView.KEYCODE_OPTIONS) {
-            // Show a menu or somethin'
-        } else if (primaryCode == Keyboard.KEYCODE_MODE_CHANGE
-                && mInputView != null) {
-            Keyboard current = mInputView.getKeyboard();
-            if (current == mSymbolsKeyboard || current == mSymbolsShiftedKeyboard) {
-                current = mQwertyKeyboard;
-            } else {
-                current = mSymbolsKeyboard;
-            }
-            mInputView.setKeyboard(current);
-            if (current == mSymbolsKeyboard) {
-                current.setShifted(false);
-            }
-        } else {
-            handleCharacter(primaryCode, keyCodes);
-        }
     }
 
     public void onText(CharSequence text) {
@@ -565,58 +378,9 @@ public class ThumbType extends InputMethodService
         updateShiftKeyState(getCurrentInputEditorInfo());
     }
 
-    private void handleShift() {
-        if (mInputView == null) {
-            return;
-        }
-        
-        Keyboard currentKeyboard = mInputView.getKeyboard();
-        if (mQwertyKeyboard == currentKeyboard) {
-            // Alphabet keyboard
-            checkToggleCapsLock();
-            mInputView.setShifted(mCapsLock || !mInputView.isShifted());
-        } else if (currentKeyboard == mSymbolsKeyboard) {
-            mSymbolsKeyboard.setShifted(true);
-            mInputView.setKeyboard(mSymbolsShiftedKeyboard);
-            mSymbolsShiftedKeyboard.setShifted(true);
-        } else if (currentKeyboard == mSymbolsShiftedKeyboard) {
-            mSymbolsShiftedKeyboard.setShifted(false);
-            mInputView.setKeyboard(mSymbolsKeyboard);
-            mSymbolsKeyboard.setShifted(false);
-        }
-    }
-    
-    private void handleCharacter(int primaryCode, int[] keyCodes) {
-        if (isInputViewShown()) {
-            if (mInputView.isShifted()) {
-                primaryCode = Character.toUpperCase(primaryCode);
-            }
-        }
-        if (isAlphabet(primaryCode) && mPredictionOn) {
-            mComposing.append((char) primaryCode);
-            getCurrentInputConnection().setComposingText(mComposing, 1);
-            updateShiftKeyState(getCurrentInputEditorInfo());
-            updateCandidates();
-        } else {
-            getCurrentInputConnection().commitText(
-                    String.valueOf((char) primaryCode), 1);
-        }
-    }
-
     private void handleClose() {
         commitTyped(getCurrentInputConnection());
         requestHideSelf(0);
-        mInputView.closing();
-    }
-
-    private void checkToggleCapsLock() {
-        long now = System.currentTimeMillis();
-        if (mLastShiftTime + 800 > now) {
-            mCapsLock = !mCapsLock;
-            mLastShiftTime = 0;
-        } else {
-            mLastShiftTime = now;
-        }
     }
     
     private String getWordSeparators() {
